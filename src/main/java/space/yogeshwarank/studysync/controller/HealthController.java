@@ -17,7 +17,7 @@ public class HealthController {
     @GetMapping("/health")
     public Map<String, String> getHealthStatus(){
         return Map.of(
-                "status", "DOWN",
+                "status", "UP",
                 "service" , "studysync-backend"
         );
     }
