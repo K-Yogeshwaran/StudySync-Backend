@@ -1,3 +1,9 @@
 spring:
   application:
     name: studysync_backend
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include : health, info
