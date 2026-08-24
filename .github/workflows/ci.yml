@@ -26,3 +26,6 @@ jobs:
 
       - name : Build and test
         run : ./mvnw clean verify
+
+      - name : Build docker image
+        run : docker run -t studysync-backend:${{github.sha}} .
