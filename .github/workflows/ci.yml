@@ -28,4 +28,4 @@ jobs:
         run : ./mvnw clean verify
 
       - name : Build docker image
-        run : docker run -t studysync-backend:${{github.sha}} .
+        run : docker build -t studysync-backend:${{github.sha}} .
