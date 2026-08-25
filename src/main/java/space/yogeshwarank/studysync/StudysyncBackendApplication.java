@@ -9,5 +9,4 @@ public class StudysyncBackendApplication {
     public static void main(String[] args) {
         SpringApplication.run(StudysyncBackendApplication.class, args);
     }
-
 }
