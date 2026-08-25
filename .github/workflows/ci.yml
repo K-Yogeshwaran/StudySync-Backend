@@ -12,6 +12,7 @@ on:
 permissions:
   contents: read
   packages: write
+  id-token: write
 
 jobs:
   build_and_test:
@@ -50,3 +51,12 @@ jobs:
               REPOSITORY_NAME=$(echo "${{github.repository}}" | tr '[:upper:]' '[:lower:]')
               docker push ghcr.io/$REPOSITORY_NAME:${{github.sha}} 
               docker push ghcr.io/$REPOSITORY_NAME:latest
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{vars.AWS_DEPLOY_ROLE_ARN}}
+          aws-region: us-east-1
+
+      - name: Verify AWS Identity
+        run: aws sts get-caller-identity
