@@ -61,10 +61,28 @@ jobs:
       - name: Verify AWS Identity
         run: aws sts get-caller-identity
 
-      - name: Test EC2 connection
+      - name: Deploy to EC2
         run: |
-          aws ssm send-command \
+          COMMAND_ID=$(aws ssm send-command \
             --instance-ids "i-0d81657c05a705db7" \
             --document-name "AWS-RunShellScript" \
-            --parameters 'commands=["echo StudySync automated deployment connection works"]' \
-            --comment "StudySync CD connection test"
+            --parameters 'commands=[
+              "set -e",
+              "GHCR_USERNAME=$(aws ssm get-parameter --name /studysync/prod/ghcr-username --query Parameter.Value --output text)",
+              "GHCR_TOKEN=$(aws ssm get-parameter --name /studysync/prod/ghcr-token --with-decryption --query Parameter.Value --output text)",
+              "echo \"$GHCR_TOKEN\" | docker login ghcr.io --username \"$GHCR_USERNAME\" --password-stdin",
+              "docker pull ghcr.io/k-yogeshwaran/studysync-backend:latest",
+              "docker rm -f studysync-backend 2>/dev/null || true",
+              "docker run -d --name studysync-backend --restart unless-stopped -p 8080:8080 ghcr.io/k-yogeshwaran/studysync-backend:latest"
+            ]' \
+            --comment "Deploy StudySync backend" \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "SSM Command ID: $COMMAND_ID"
+
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "i-0d81657c05a705db7"
+
+          echo "Deployment command completed successfully."
