@@ -60,3 +60,15 @@ jobs:
 
       - name: Verify AWS Identity
         run: aws sts get-caller-identity
+
+      - name: Test SSM access
+        run: |
+          aws ssm describe-instance-information
+
+      - name: Test EC2 connection
+        run: |
+          aws ssm send-command \
+            --instance-ids "i-0d81657c05a705db7" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=["echo StudySync automated deployment connection works"]' \
+            --comment "StudySync CD connection test"
