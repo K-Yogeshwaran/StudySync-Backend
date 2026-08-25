@@ -52,6 +52,11 @@ jobs:
               docker push ghcr.io/$REPOSITORY_NAME:${{github.sha}} 
               docker push ghcr.io/$REPOSITORY_NAME:latest
 
+      - name: Debug OIDC Claims
+        uses: github/actions-oidc-debugger@main
+        with:
+          audience: sts.amazonaws.com
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v5
         with:
