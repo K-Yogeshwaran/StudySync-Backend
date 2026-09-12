@@ -98,7 +98,7 @@ jobs:
               "echo \"$GHCR_TOKEN\" | docker login ghcr.io --username \"$GHCR_USERNAME\" --password-stdin",
               "docker pull ghcr.io/k-yogeshwaran/studysync-backend:latest",
               "docker rm -f studysync-backend 2>/dev/null || true",
-              "docker run -d --name studysync-backend --restart unless-stopped -p 8080:8080 ghcr.io/k-yogeshwaran/studysync-backend:latest",
+              "docker run -d --name studysync-backend --restart unless-stopped --network studysync-network -p 8080:8080 -e DB_URL=jdbc:mysql://studysync_mysql_db:3306/studysync -e DB_USERNAME=studysync -e DB_PASSWORD=user123 -e DDL_AUTO=update -e SHOW_SQL=false -e SERVER_PORT=8080 ghcr.io/k-yogeshwaran/studysync-backend:latest",
               "echo \"Waiting for StudySync to start...\"",
               "sleep 15",
               "curl --fail --retry 10 --retry-delay 3 http://localhost:8080/actuator/health",
