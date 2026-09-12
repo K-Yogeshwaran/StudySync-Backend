@@ -109,6 +109,8 @@ jobs:
             --output text)
 
           echo "SSM Command ID: $COMMAND_ID"
+          
+          
 
           aws ssm wait command-executed \
             --command-id "$COMMAND_ID" \
