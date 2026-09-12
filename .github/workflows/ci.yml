@@ -1,4 +1,4 @@
-name : Backend CI
+name: Backend CI/CD
 
 on:
   push:
@@ -15,7 +15,13 @@ permissions:
   id-token: write
 
 jobs:
-  build_and_test:
+
+  # ==========================================
+  # CI
+  # ==========================================
+
+  ci:
+    name: Continuous Integration
     runs-on: ubuntu-latest
 
     services:
@@ -36,17 +42,18 @@ jobs:
           --health-retries=10
 
     steps:
-      - name : checkout source code
-        uses : actions/checkout@v5
 
-      - name : setup java 21
-        uses : actions/setup-java@v5
-        with :
-          java-version : "21"
-          distribution : "temurin"
-          cache : maven
+      - name: Checkout source code
+        uses: actions/checkout@v5
 
-      - name : Build and test
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: maven
+
+      - name: Build and test
         env:
           DB_URL: jdbc:mysql://127.0.0.1:3306/studysync
           DB_USERNAME: studysync
@@ -54,33 +61,51 @@ jobs:
           DDL_AUTO: update
           SHOW_SQL: "false"
           SERVER_PORT: 8080
-        run : ./mvnw clean verify
+        run: ./mvnw clean verify
 
-      - name : Login to Github Container Registry
-        uses : docker/login-action@v3
-        with :
-          registry : ghcr.io
-          username : ${{github.actor}}
-          password : ${{secrets.GITHUB_TOKEN}}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          IMAGE_NAME=$(echo "ghcr.io/${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+
+          docker build \
+            -t $IMAGE_NAME:${{ github.sha }} \
+            -t $IMAGE_NAME:latest \
+            .
+
+      - name: Push Docker image
+        run: |
+          REPOSITORY_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+
+          docker push ghcr.io/$REPOSITORY_NAME:${{ github.sha }}
+          docker push ghcr.io/$REPOSITORY_NAME:latest
 
 
-      - name : Build docker image
-        run : |
-              IMAGE_NAME=$(echo "ghcr.io/${{github.repository}}" | tr '[:upper:]' '[:lower:]' )
-              docker build \
-                -t $IMAGE_NAME:${{github.sha}} \
-                -t $IMAGE_NAME:latest \
-                .
-      - name : Push the docker image to the registry
-        run : |
-              REPOSITORY_NAME=$(echo "${{github.repository}}" | tr '[:upper:]' '[:lower:]')
-              docker push ghcr.io/$REPOSITORY_NAME:${{github.sha}} 
-              docker push ghcr.io/$REPOSITORY_NAME:latest
+  # ==========================================
+  # CD
+  # ==========================================
+
+  cd:
+    name: Continuous Deployment
+    runs-on: ubuntu-latest
+
+    needs: ci
+
+    # Deploy only when changes reach main
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v5
         with:
-          role-to-assume: ${{secrets.AWS_DEPLOY_ROLE_ARN}}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: us-east-1
 
       - name: Verify AWS Identity
@@ -88,20 +113,31 @@ jobs:
 
       - name: Deploy to EC2
         run: |
+
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "i-09eb1d383851898b4" \
             --document-name "AWS-RunShellScript" \
             --parameters 'commands=[
               "set -e",
+
               "GHCR_USERNAME=$(aws ssm get-parameter --name /studysync/prod/ghcr-username --query Parameter.Value --output text)",
+
               "GHCR_TOKEN=$(aws ssm get-parameter --name /studysync/prod/ghcr-token --with-decryption --query Parameter.Value --output text)",
+
               "echo \"$GHCR_TOKEN\" | docker login ghcr.io --username \"$GHCR_USERNAME\" --password-stdin",
+
               "docker pull ghcr.io/k-yogeshwaran/studysync-backend:latest",
+
               "docker rm -f studysync-backend 2>/dev/null || true",
+
               "docker run -d --name studysync-backend --restart unless-stopped --network studysync-network -p 8080:8080 -e DB_URL=jdbc:mysql://studysync_mysql_db:3306/studysync -e DB_USERNAME=studysync -e DB_PASSWORD=user123 -e DDL_AUTO=update -e SHOW_SQL=false -e SERVER_PORT=8080 ghcr.io/k-yogeshwaran/studysync-backend:latest",
+
               "echo \"Waiting for StudySync to start...\"",
+
               "sleep 15",
+
               "curl --fail --retry 10 --retry-delay 3 http://localhost:8080/actuator/health",
+
               "echo \"StudySync health check passed!\""
             ]' \
             --comment "Deploy StudySync backend" \
@@ -109,8 +145,6 @@ jobs:
             --output text)
 
           echo "SSM Command ID: $COMMAND_ID"
-          
-          
 
           aws ssm wait command-executed \
             --command-id "$COMMAND_ID" \
