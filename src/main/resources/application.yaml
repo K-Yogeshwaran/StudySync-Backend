@@ -2,6 +2,20 @@ spring:
   application:
     name: studysync_backend
 
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: ${DDL_AUTO}
+    show-sql: ${SHOW_SQL}
+
+
+server:
+  port: ${SERVER_PORT:8080}
+
 management:
   endpoints:
     web:

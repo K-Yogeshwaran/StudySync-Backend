@@ -64,7 +64,7 @@ jobs:
       - name: Deploy to EC2
         run: |
           COMMAND_ID=$(aws ssm send-command \
-            --instance-ids "i-0d81657c05a705db7" \
+            --instance-ids "i-09eb1d383851898b4" \
             --document-name "AWS-RunShellScript" \
             --parameters 'commands=[
               "set -e",
@@ -87,6 +87,6 @@ jobs:
 
           aws ssm wait command-executed \
             --command-id "$COMMAND_ID" \
-            --instance-id "i-0d81657c05a705db7"
+            --instance-id "i-09eb1d383851898b4"
 
           echo "StudySync deployment completed successfully."
