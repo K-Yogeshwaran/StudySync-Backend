@@ -8,10 +8,9 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import space.yogeshwarank.studysync.dto.LoginRequest;
+import space.yogeshwarank.studysync.dto.LoginResponse;
 import space.yogeshwarank.studysync.dto.RegisterRequest;
 import space.yogeshwarank.studysync.dto.UserResponse;
 import space.yogeshwarank.studysync.entity.User;
@@ -40,6 +39,8 @@ public class AuthController {
     }
 
 
+
+
     @Operation(summary = "Adds a new user", description = "Creates a new studysync user account")
     @ApiResponses({
             @ApiResponse(responseCode =  "201", description = "User created successfully"),
@@ -49,7 +50,6 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<UserResponse> registerUser(
             @Valid @RequestBody RegisterRequest request){
-        System.out.println("Controller reached");
         User user = authService.register(request);
 
         UserResponse userResponse = new UserResponse(user.getId(),
@@ -59,6 +59,22 @@ public class AuthController {
         );
 
         return ResponseEntity.status(HttpStatus.CREATED).body(userResponse);
+    }
+
+
+    @Operation(summary = "Logins the registered user", description = "Authenticates a user using email and password and returns a JWT Access Token")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Successful Login"),
+            @ApiResponse(responseCode = "401" , description = "Invalid email or password"),
+            @ApiResponse(responseCode = "400", description = "Invalid request data")
+    })
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> loginUser(
+            @Valid @RequestBody LoginRequest loginRequest
+            ){
+        LoginResponse loginResponse = authService.login(loginRequest);
+
+        return ResponseEntity.status(HttpStatus.OK).body(loginResponse);
     }
 
 }

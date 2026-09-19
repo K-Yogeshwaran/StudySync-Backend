@@ -1,22 +1,31 @@
 package space.yogeshwarank.studysync.service;
 
 
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import space.yogeshwarank.studysync.dto.LoginRequest;
+import space.yogeshwarank.studysync.dto.LoginResponse;
 import space.yogeshwarank.studysync.dto.RegisterRequest;
 import space.yogeshwarank.studysync.entity.User;
 import space.yogeshwarank.studysync.exception.EmailAlreadyExistsException;
+import space.yogeshwarank.studysync.exception.InvalidCredentialException;
 import space.yogeshwarank.studysync.repository.UserRepository;
+import space.yogeshwarank.studysync.security.JwtService;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@Slf4j
 @ExtendWith(MockitoExtension.class)
 public class AuthServiceTest {
 
@@ -28,6 +37,9 @@ public class AuthServiceTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private JwtService jwtService;
 
     @Test
     public void register_shouldThrowException_whenEmailAlreadyExists(){
@@ -64,6 +76,57 @@ public class AuthServiceTest {
         assertEquals("testuser@gmail.com", user.getEmail());
         assertEquals("hashed-test-password", user.getPassword());
 
+    }
+
+    @Test
+    public void login_shouldThrowException_whenTheUserIsNotFound(){
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setEmail("admin@gmail.com");
+        loginRequest.setPassword("hashed-password");
+
+        when(userRepository.findByEmail("admin@gmail.com")).thenReturn(Optional.empty());
+
+        assertThrows(InvalidCredentialException.class, () -> authService.login(loginRequest));
+    }
+
+    @Test
+    public void login_shouldThrowException_whenThePasswordIsIncorrect(){
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setEmail("admin@gmail.com");
+        loginRequest.setPassword("Incorrect password");
+
+        User user = new User();
+        UUID uuid = UUID.randomUUID();
+        user.setId(uuid);
+        user.setName("Admin");
+        user.setEmail("admin@gmail.com");
+        user.setPassword("Correct password");
+
+        when(userRepository.findByEmail("admin@gmail.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())).thenReturn(false);
+
+        assertThrows(InvalidCredentialException.class, () -> authService.login(loginRequest));
+    }
+
+
+    @Test
+    public void login_shouldReturnAccessToken_whenCredentialsAreCorrect(){
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setEmail("admin@gmail.com");
+        loginRequest.setPassword("admin1234");
+
+        User user = new User();
+        user.setName("Admin");
+        user.setEmail("admin@gmail.com");
+        user.setPassword("hashed admin password");
+
+        when(userRepository.findByEmail("admin@gmail.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())).thenReturn(true);
+        when(jwtService.generateToken(user)).thenReturn("secret jwt token");
+
+        LoginResponse loginResponse = authService.login(loginRequest);
+        assertEquals("secret jwt token", loginResponse.getAccessToken());
+        verify(passwordEncoder).matches("admin1234", "hashed admin password");
 
     }
 }
